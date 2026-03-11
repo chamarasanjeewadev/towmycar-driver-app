@@ -1,0 +1,23 @@
+export const Colors = {
+  // Matches frontend theme (orange primary, dark blue background)
+  background: '#0B1D33',
+  surface: '#132A45',
+  surfaceLight: '#1A3556',
+  primary: '#F28C1A',
+  primaryDark: '#D97A0E',
+  accent: '#ffd33d',
+  text: '#ffffff',
+  textSecondary: '#9ca3af',
+  textMuted: '#6b7280',
+  border: '#1A3556',
+  error: '#ef4444',
+  success: '#22c55e',
+  warning: '#f59e0b',
+  info: '#3b82f6',
+  statusPending: '#f59e0b',
+  statusQuoted: '#3b82f6',
+  statusAccepted: '#22c55e',
+  statusRejected: '#ef4444',
+  statusCompleted: '#8b5cf6',
+  google: '#4285F4',
+};

@@ -1,0 +1,4 @@
+export const ENV = {
+  CLERK_PUBLISHABLE_KEY: process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!,
+  API_BASE_URL: process.env.EXPO_PUBLIC_API_BASE_URL!,
+};
