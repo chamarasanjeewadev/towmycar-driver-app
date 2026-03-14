@@ -1,6 +1,7 @@
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useUser } from '@clerk/expo';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/colors';
 import { useDriverDashboard } from '@/lib/hooks/use-driver-api';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
@@ -8,6 +9,7 @@ import { ErrorView } from '@/components/ErrorView';
 import { getApiErrorMessage } from '@/lib/api/client';
 
 export default function DashboardScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user } = useUser();
   const { data, isLoading, isError, error, refetch, isFetching } = useDriverDashboard();
@@ -33,7 +35,7 @@ export default function DashboardScreen() {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, { paddingBottom: 40 + insets.bottom }]}
       refreshControl={<RefreshControl refreshing={isFetching} onRefresh={refetch} />}
     >
       <Text style={styles.welcome}>
@@ -143,7 +145,6 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
-    paddingBottom: 40,
   },
   welcome: {
     fontSize: 24,

@@ -47,6 +47,7 @@ eas build --platform android --profile production --local
 **iOS signing:** EAS will prompt for Apple Developer credentials to handle code signing automatically.
 
 **Android keystore:** EAS generates one automatically on first build.
+
 > IMPORTANT: Back up the keystore — you need the same one for all future updates. Store it somewhere safe (e.g. password manager or secure cloud storage).
 
 ---
@@ -74,7 +75,7 @@ eas submit --platform android --path ./build-xxx.aab
 
 1. Go to [appstoreconnect.apple.com](https://appstoreconnect.apple.com)
 2. My Apps → + → New App
-3. Bundle ID: `com.towmycar.driver`
+3. Bundle ID: `com.towmycar.driverappapp`
 4. Fill in:
    - App name, subtitle, description, keywords
    - Category: **Navigation** or **Travel**

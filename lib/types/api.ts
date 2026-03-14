@@ -186,11 +186,41 @@ export interface AssignedRequestDetail {
   };
 }
 
+// ─── Closed Job History ───────────────────────────────────────────────────────
+// GET /driver/closed-jobs-history → PaginatedResponse<ClosedJobHistoryItem>
+// Nested structure
+
+export interface ClosedJobHistoryItem {
+  id: number;
+  requestId: number;
+  driverStatus: string;
+  userStatus: string | null;
+  estimation: string | null;
+  explanation: string | null;
+  updatedAt: string;
+  createdAt: string;
+  isJobConfirmed: boolean;
+  userRequest: {
+    id: number;
+    status: string;
+    description: string | null;
+    regNo: string | null;
+    make: string | null;
+    makeModel: string | null;
+    mobileNumber: string | null;
+    requestType: string | null;
+    address: string | null;
+    postCode: string | null;
+    toAddress: string | null;
+    toPostCode: string | null;
+  };
+}
+
 // ─── Quote ───────────────────────────────────────────────────────────────────
 
 export interface QuoteSubmission {
   estimation: number;
   explanation: string;
-  vehicleNo: string;
-  driverStatus: 'QUOTED';
+  vehicleNo?: string;
+  driverStatus: 'QUOTED' | 'ACCEPTED' | 'CLOSED';
 }

@@ -4,11 +4,11 @@ import { Colors } from '@/constants/colors';
 const statusColors: Record<string, string> = {
   PENDING: Colors.statusPending,
   ASSIGNED: Colors.statusPending,
+  PREQUOTED: Colors.statusPending,
   QUOTED: Colors.statusQuoted,
   ACCEPTED: Colors.statusAccepted,
   REJECTED: Colors.statusRejected,
-  COMPLETED: Colors.statusCompleted,
-  IN_PROGRESS: Colors.info,
+  CLOSED: Colors.statusCompleted,
 };
 
 interface StatusBadgeProps {

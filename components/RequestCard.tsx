@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Linking, Platform } from 'react-native';
 import { Colors } from '@/constants/colors';
 import { StatusBadge } from './StatusBadge';
 import type { AssignedRequest } from '@/lib/types/api';
@@ -8,30 +8,100 @@ interface RequestCardProps {
   onPress: () => void;
 }
 
+const UK_POSTCODE_RE = /[A-Z]{1,2}[0-9][0-9A-Z]?\s*[0-9][A-Z]{2}/i;
+
+function extractPostcode(postCode: string | null, address: string | null): string | null {
+  if (postCode) return postCode.toUpperCase().trim();
+  if (address) {
+    const match = address.match(UK_POSTCODE_RE);
+    return match ? match[0].toUpperCase().trim() : null;
+  }
+  return null;
+}
+
+function openDirections(from: string | null, to: string | null) {
+  const origin = from ?? '';
+  const destination = to ?? '';
+  if (!origin && !destination) return;
+
+  const query = [origin, destination].filter(Boolean).join(' to ');
+  const url =
+    Platform.OS === 'ios'
+      ? `maps://?saddr=${encodeURIComponent(origin)}&daddr=${encodeURIComponent(destination)}`
+      : `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
+
+  Linking.canOpenURL(url).then((supported) => {
+    if (supported) {
+      Linking.openURL(url);
+    } else {
+      const fallback = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
+      Linking.openURL(fallback);
+    }
+  });
+}
+
+function normalizeType(type: string | null): string {
+  if (!type) return 'RECOVERY';
+  return type.toUpperCase() === 'TOW' ? 'RECOVERY' : type.toUpperCase();
+}
+
 export function RequestCard({ item, onPress }: RequestCardProps) {
-  const vehicle = [item.make, item.makeModel].filter(Boolean).join(' ') || 'Unknown Vehicle';
+  const fromPostcode = extractPostcode(item.postCode, item.address);
+  const toPostcode = extractPostcode(item.toPostCode, item.toAddress);
+  const make = item.make || item.makeModel || '';
+  const reg = item.regNo ?? '';
+
+  const canOpenDirections = !!(fromPostcode || toPostcode);
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.header}>
-        <Text style={styles.vehicle} numberOfLines={1}>
-          {vehicle}
-        </Text>
         <StatusBadge status={item.driverStatus} />
       </View>
 
-      {item.regNo && <Text style={styles.reg}>{item.regNo}</Text>}
+      <TouchableOpacity
+        style={styles.routeRow}
+        onPress={() => openDirections(fromPostcode, toPostcode)}
+        activeOpacity={canOpenDirections ? 0.6 : 1}
+        disabled={!canOpenDirections}
+      >
+        <View style={styles.postcodeBlock}>
+          <Text style={styles.postcodeLabel}>FROM</Text>
+          <Text style={styles.postcodeValue}>{fromPostcode ?? '—'}</Text>
+        </View>
 
-      {item.address && (
-        <Text style={styles.location} numberOfLines={1}>
-          📍 {item.address}{item.postCode ? `, ${item.postCode}` : ''}
-        </Text>
+        <View style={styles.arrowContainer}>
+          <View style={styles.arrowLine} />
+          <Text style={styles.arrowHead}>›</Text>
+        </View>
+
+        <View style={styles.postcodeBlock}>
+          <Text style={styles.postcodeLabel}>TO</Text>
+          <Text style={[styles.postcodeValue, styles.postcodeValueTo]}>{toPostcode ?? '—'}</Text>
+        </View>
+
+        {canOpenDirections && (
+          <View style={styles.mapIcon}>
+            <Text style={styles.mapEmoji}>🗺️</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+
+      {(make || reg) && (
+        <View style={styles.vehicleRow}>
+          {make ? <Text style={styles.vehicleMake}>{make}</Text> : null}
+          {reg ? (
+            <View style={styles.regBadge}>
+              <Text style={styles.regText}>{reg}</Text>
+            </View>
+          ) : null}
+        </View>
       )}
 
       <View style={styles.footer}>
-        <Text style={styles.type}>{item.requestType ?? 'Tow'}</Text>
+        <Text style={styles.type}>{normalizeType(item.requestType)}</Text>
         <Text style={styles.date}>
-          {new Date(item.createdAt).toLocaleDateString()}
+          {new Date(item.createdAt).toLocaleDateString('en-GB')}
         </Text>
       </View>
     </TouchableOpacity>
@@ -48,27 +118,85 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   header: {
+    marginBottom: 12,
+  },
+  routeRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    backgroundColor: Colors.background,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  postcodeBlock: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  postcodeLabel: {
+    color: Colors.textMuted,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1,
     marginBottom: 4,
   },
-  vehicle: {
+  postcodeValue: {
     color: Colors.text,
-    fontSize: 16,
-    fontWeight: '600',
-    flex: 1,
-    marginRight: 8,
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
-  reg: {
+  postcodeValueTo: {
+    color: Colors.success,
+  },
+  arrowContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  arrowLine: {
+    width: 20,
+    height: 2,
+    backgroundColor: Colors.textMuted,
+    opacity: 0.5,
+  },
+  arrowHead: {
+    color: Colors.textMuted,
+    fontSize: 20,
+    lineHeight: 22,
+    marginLeft: -2,
+  },
+  mapIcon: {
+    marginLeft: 8,
+  },
+  mapEmoji: {
+    fontSize: 18,
+  },
+  vehicleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  vehicleMake: {
     color: Colors.textSecondary,
     fontSize: 13,
-    marginBottom: 6,
+    fontWeight: '500',
   },
-  location: {
-    color: Colors.textSecondary,
-    fontSize: 13,
-    marginBottom: 8,
+  regBadge: {
+    backgroundColor: Colors.surfaceLight,
+    borderRadius: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  regText: {
+    color: Colors.accent,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   footer: {
     flexDirection: 'row',
@@ -79,6 +207,7 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     fontSize: 12,
     textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   date: {
     color: Colors.textMuted,

@@ -6,15 +6,28 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsudG93bXljYXIudWsk",
+        "EXPO_PUBLIC_API_BASE_URL": "https://api.towmycar.uk",
+        "EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID": "<your-google-web-client-id>"
+      }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsudG93bXljYXIudWsk",
+        "EXPO_PUBLIC_API_BASE_URL": "https://api.towmycar.uk",
+        "EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID": "<your-google-web-client-id>"
+      }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "ANDROID_HOME": "/Users/chami/Library/Android/sdk"
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsudG93bXljYXIudWsk",
+        "EXPO_PUBLIC_API_BASE_URL": "https://api.towmycar.uk",
+        "EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID": "173382114365-c8mvr99ensaunkfdia3jlvlllg9st6cg.apps.googleusercontent.com",
+        "EXPO_PUBLIC_CLERK_GOOGLE_IOS_CLIENT_ID":"173382114365-1b1n3e4bimvtb1dlio8dckhrn0gekj80.apps.googleusercontent.com"
       }
     }
   },

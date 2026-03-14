@@ -16,6 +16,7 @@ import { useSignIn } from '@clerk/expo';
 import { useSignInWithGoogle } from '@clerk/expo/google';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/colors';
+import { ENV } from '@/env';
 
 type ClerkErrorLike = { message?: string; longMessage?: string } | null;
 
@@ -45,7 +46,10 @@ export default function SignInScreen() {
     } | null;
     fetchStatus: 'idle' | 'fetching';
   };
-  const { startGoogleAuthenticationFlow } = useSignInWithGoogle();
+  const { startGoogleAuthenticationFlow } = useSignInWithGoogle({
+    androidClientId: ENV.CLERK_GOOGLE_WEB_CLIENT_ID,
+    iosClientId: ENV.EXPO_PUBLIC_CLERK_GOOGLE_IOS_CLIENT_ID,
+  });
   const router = useRouter();
 
   const [email, setEmail] = useState('');

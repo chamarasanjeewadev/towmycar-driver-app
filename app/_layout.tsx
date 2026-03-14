@@ -4,9 +4,23 @@ import { Slot, useRouter, useSegments } from 'expo-router';
 import { ClerkProvider, ClerkLoaded, useAuth } from '@clerk/expo';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import * as SplashScreen from 'expo-splash-screen';
+import * as Notifications from 'expo-notifications';
 import { tokenCache } from '@/lib/auth/token-cache';
 import { setAuthTokenGetter } from '@/lib/api/client';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { ToastProvider } from '@/components/Toast';
 import { ENV } from '@/env';
+
+// Configure foreground notification behavior (must be at module scope)
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 
 // Keep native splash visible until we're ready
 SplashScreen.preventAutoHideAsync();
@@ -72,27 +86,31 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <View style={styles.root}>
-      <ClerkProvider
-        publishableKey={ENV.CLERK_PUBLISHABLE_KEY}
-        tokenCache={tokenCache}
-      >
-        <ClerkLoaded>
-          <QueryClientProvider client={queryClient}>
-            <AuthRouter />
-          </QueryClientProvider>
-        </ClerkLoaded>
-      </ClerkProvider>
+    <ErrorBoundary>
+      <View style={styles.root}>
+        <ClerkProvider
+          publishableKey={ENV.CLERK_PUBLISHABLE_KEY}
+          tokenCache={tokenCache}
+        >
+          <ClerkLoaded>
+            <QueryClientProvider client={queryClient}>
+              <ToastProvider>
+                <AuthRouter />
+              </ToastProvider>
+            </QueryClientProvider>
+          </ClerkLoaded>
+        </ClerkProvider>
 
-      {showCustomSplash && (
-        <CustomSplash
-          onReady={() => {
-            setSplashDone(true);
-            setShowCustomSplash(false);
-          }}
-        />
-      )}
-    </View>
+        {showCustomSplash && (
+          <CustomSplash
+            onReady={() => {
+              setSplashDone(true);
+              setShowCustomSplash(false);
+            }}
+          />
+        )}
+      </View>
+    </ErrorBoundary>
   );
 }
 

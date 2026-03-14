@@ -46,7 +46,11 @@ apiClient.interceptors.response.use(
     }
 
     // Attach readable message to the error for UI consumption
-    if (responseData?.error) {
+    if (responseData?.message) {
+      error.userMessage = responseData.message;
+    } else if (responseData?.info?.message) {
+      error.userMessage = responseData.info.message;
+    } else if (responseData?.error) {
       error.userMessage = responseData.error;
     } else if (status === 401) {
       error.userMessage = 'Session expired. Please sign in again.';
