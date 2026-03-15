@@ -18,9 +18,9 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.towmycar.driverapp",
-      "buildNumber": "4",
+      "buildNumber": "13",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
@@ -53,6 +53,7 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      "@clerk/expo",
       "expo-router",
       [
         "@react-native-firebase/app",
