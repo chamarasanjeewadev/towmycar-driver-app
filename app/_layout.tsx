@@ -4,6 +4,7 @@ import { Slot, useRouter, useSegments } from 'expo-router';
 import { ClerkProvider, ClerkLoaded, useAuth } from '@clerk/expo';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import * as SplashScreen from 'expo-splash-screen';
+import * as Updates from 'expo-updates';
 import * as Notifications from 'expo-notifications';
 import { tokenCache } from '@/lib/auth/token-cache';
 import { setAuthTokenGetter } from '@/lib/api/client';
@@ -80,9 +81,24 @@ export default function RootLayout() {
   const [splashDone, setSplashDone] = useState(false);
   const [showCustomSplash, setShowCustomSplash] = useState(true);
 
-  // Hide native splash as soon as JS is running
+  // Check for OTA updates on startup, then hide native splash
   useEffect(() => {
-    SplashScreen.hideAsync();
+    async function checkForUpdate() {
+      try {
+        if (!Updates.isEnabled) return;
+        const update = await Updates.checkForUpdateAsync();
+        if (update.isAvailable) {
+          await Updates.fetchUpdateAsync();
+          await Updates.reloadAsync();
+          return; // reloadAsync restarts the app — nothing below runs
+        }
+      } catch {
+        // Non-fatal: proceed with cached bundle
+      } finally {
+        SplashScreen.hideAsync();
+      }
+    }
+    checkForUpdate();
   }, []);
 
   return (

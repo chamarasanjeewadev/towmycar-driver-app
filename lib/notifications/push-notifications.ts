@@ -2,6 +2,7 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import { apiClient } from '@/lib/api/client';
+import messaging from '@react-native-firebase/messaging';
 
 export async function registerForPushNotificationsAsync(): Promise<string | null> {
   console.log('[Notifications] Starting registration...');
@@ -17,10 +18,13 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
   if (Platform.OS === 'android') {
     try {
       await Notifications.setNotificationChannelAsync('default', {
-        name: 'Default',
+        name: 'TowMyCar Driver',
         importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#0B1D33',
+        lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+        bypassDnd: false,
+        showBadge: true,
       });
       console.log('[Notifications] Android channel created');
     } catch (e) {
@@ -44,16 +48,22 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
     return null;
   }
 
-  // Get native FCM/APNs token
+  // Get FCM token
   try {
-    console.log('[Notifications] Calling getDevicePushTokenAsync...');
-    const tokenData = await Notifications.getDevicePushTokenAsync();
-    const token = tokenData.data as string;
-    console.log('[Notifications] Device push token obtained:', token.substring(0, 20) + '...');
+    let token: string;
+    if (Platform.OS === 'ios') {
+      // Firebase handles APNs ↔ FCM bridging on iOS
+      await messaging().requestPermission();
+      await messaging().registerDeviceForRemoteMessages();
+      token = await messaging().getToken();
+    } else {
+      const tokenData = await Notifications.getDevicePushTokenAsync();
+      token = tokenData.data as string;
+    }
+    console.log('[Notifications] FCM token obtained:', token.substring(0, 20) + '...');
     return token;
   } catch (e) {
-    console.error('[Notifications] getDevicePushTokenAsync FAILED:', e);
-    console.error('[Notifications] This usually means google-services.json is missing or Firebase is not initialised in the native build');
+    console.error('[Notifications] Failed to get FCM token:', e);
     return null;
   }
 }

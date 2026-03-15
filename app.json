@@ -2,7 +2,16 @@
   "expo": {
     "name": "TowMyCar Driver",
     "slug": "towmycar-driver",
-    "version": "1.0.0",
+    "version": "1.0.1",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/0bbafa43-9ca9-419a-9065-297f08f352fa",
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "towmycar-driver",
@@ -11,10 +20,14 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.towmycar.driverapp",
-      "buildNumber": "1",
+      "buildNumber": "4",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleDisplayName": "TMC-Driver"
+      },
+      "entitlements": {
+        "aps-environment": "production"
       }
     },
     "android": {
@@ -27,6 +40,11 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
+      "permissions": [
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE",
+        "android.permission.POST_NOTIFICATIONS"
+      ],
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
@@ -37,12 +55,21 @@
     "plugins": [
       "expo-router",
       [
+        "@react-native-firebase/app",
+        {
+          "googleServicesFile": "./GoogleService-Info.plist"
+        }
+      ],
+      "@react-native-firebase/messaging",
+      "expo-build-properties",
+      [
         "expo-notifications",
         {
-          "icon": "./assets/images/icon.png",
+          "icon": "./assets/images/android-icon-monochrome.png",
           "color": "#0B1D33",
           "defaultChannel": "default",
-          "enableBackgroundRemoteNotifications": true
+          "enableBackgroundRemoteNotifications": true,
+          "sounds": []
         }
       ],
       [
@@ -54,9 +81,11 @@
           "backgroundColor": "#0B1D33"
         }
       ],
+      "expo-updates",
       "expo-secure-store",
       "./plugins/withAndroidReleaseSigning",
-      "./plugins/withGradleProperties"
+      "./plugins/withGradleProperties",
+      "./plugins/withFirebaseiOSFix"
     ],
     "experiments": {
       "typedRoutes": true,
