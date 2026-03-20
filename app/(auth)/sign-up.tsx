@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useSignUp } from '@clerk/expo';
 import { useSignInWithGoogle } from '@clerk/expo/google';
+import { useSignInWithApple } from '@clerk/expo/apple';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/colors';
 
@@ -46,6 +47,7 @@ export default function SignUpScreen() {
     fetchStatus: 'idle' | 'fetching';
   };
   const { startGoogleAuthenticationFlow } = useSignInWithGoogle();
+  const { startAppleAuthenticationFlow } = useSignInWithApple();
   const router = useRouter();
 
   const [email, setEmail] = useState('');
@@ -54,6 +56,7 @@ export default function SignUpScreen() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [appleLoading, setAppleLoading] = useState(false);
 
   const showError = (message: string) => {
     setError(message);
@@ -150,6 +153,25 @@ export default function SignUpScreen() {
     }
   };
 
+  const handleAppleSignUp = async () => {
+    setError('');
+    setAppleLoading(true);
+
+    try {
+      const { createdSessionId, setActive: setActiveSession } =
+        await startAppleAuthenticationFlow();
+
+      if (createdSessionId && setActiveSession) {
+        await setActiveSession({ session: createdSessionId });
+      }
+    } catch (err: unknown) {
+      console.error('Apple sign up error:', err);
+      showError(getErrorMessage(err, 'Apple sign up failed. Please try again.'));
+    } finally {
+      setAppleLoading(false);
+    }
+  };
+
   if (pendingVerification) {
     return (
       <KeyboardAvoidingView
@@ -220,6 +242,20 @@ export default function SignUpScreen() {
         <Text style={styles.subtitle}>Create Driver Account</Text>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
+
+        {Platform.OS === 'ios' && (
+          <TouchableOpacity
+            style={[styles.appleButton, appleLoading && styles.buttonDisabled]}
+            onPress={handleAppleSignUp}
+            disabled={appleLoading}
+          >
+            {appleLoading ? (
+              <ActivityIndicator color="#000000" />
+            ) : (
+              <Text style={styles.appleButtonText}> Sign in with Apple</Text>
+            )}
+          </TouchableOpacity>
+        )}
 
         <TouchableOpacity
           style={[styles.googleButton, googleLoading && styles.buttonDisabled]}
@@ -325,6 +361,18 @@ const styles = StyleSheet.create({
     padding: 16,
     alignItems: 'center',
     marginBottom: 16,
+  },
+  appleButton: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  appleButtonText: {
+    color: '#000000',
+    fontSize: 16,
+    fontWeight: '600',
   },
   buttonDisabled: {
     opacity: 0.6,

@@ -8,6 +8,14 @@ module.exports = function withKeystoreGradleProperties(config) {
   return withGradleProperties(config, (config) => {
     const props = config.modResults;
 
+    // Increase JVM memory to avoid OutOfMemoryError during release lint
+    const jvmArgsIdx = props.findIndex(
+      (p) => p.type === 'property' && p.key === 'org.gradle.jvmargs'
+    );
+    if (jvmArgsIdx !== -1) {
+      props[jvmArgsIdx].value = '-Xmx4096m -XX:MaxMetaspaceSize=1024m';
+    }
+
     const keystoreProps = {
       MYAPP_UPLOAD_STORE_FILE: '../../my-upload-key.keystore',
       MYAPP_UPLOAD_KEY_ALIAS: 'my-key-alias',

@@ -20,19 +20,20 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.towmycar.driverapp",
-      "buildNumber": "14",
+      "buildNumber": "15",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "CFBundleDisplayName": "TMC-Driver"
       },
       "entitlements": {
-        "aps-environment": "production"
+        "aps-environment": "production",
+        "com.apple.developer.applesignin": ["Default"]
       }
     },
     "android": {
       "package": "com.towmycar.driverapp",
-      "versionCode": 4,
+      "versionCode": 5,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -62,6 +63,7 @@
         }
       ],
       "@react-native-firebase/messaging",
+      "./plugins/withFirebaseMessagingManifestFix",
       "expo-build-properties",
       [
         "expo-notifications",
@@ -82,6 +84,7 @@
           "backgroundColor": "#0B1D33"
         }
       ],
+      "expo-apple-authentication",
       "expo-updates",
       "expo-secure-store",
       "./plugins/withAndroidReleaseSigning",

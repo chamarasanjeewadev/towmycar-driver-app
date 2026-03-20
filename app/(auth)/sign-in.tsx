@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useSignIn } from '@clerk/expo';
 import { useSignInWithGoogle } from '@clerk/expo/google';
+import { useSignInWithApple } from '@clerk/expo/apple';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/colors';
 import { ENV } from '@/env';
@@ -37,7 +38,7 @@ export default function SignInScreen() {
   const { signIn, fetchStatus } = useSignIn() as unknown as {
     signIn: {
       status: string;
-      create: (params: { identifier: string }) => Promise<{ error: ClerkErrorLike }>;
+      create: (params: { identifier: string; password?: string }) => Promise<{ error: ClerkErrorLike }>;
       emailCode: {
         sendCode: (params?: { emailAddress?: string }) => Promise<{ error: ClerkErrorLike }>;
         verifyCode: (params: { code: string }) => Promise<{ error: ClerkErrorLike }>;
@@ -50,6 +51,7 @@ export default function SignInScreen() {
     androidClientId: ENV.CLERK_GOOGLE_WEB_CLIENT_ID,
     iosClientId: ENV.EXPO_PUBLIC_CLERK_GOOGLE_IOS_CLIENT_ID,
   });
+  const { startAppleAuthenticationFlow } = useSignInWithApple();
   const router = useRouter();
 
   const [email, setEmail] = useState('');
@@ -58,6 +60,27 @@ export default function SignInScreen() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [appleLoading, setAppleLoading] = useState(false);
+  const [passwordMode, setPasswordMode] = useState(false);
+  const [password, setPassword] = useState('');
+  const [tapCount, setTapCount] = useState(0);
+  const [lastTapTime, setLastTapTime] = useState(0);
+
+  const handleLogoTap = () => {
+    const now = Date.now();
+    if (now - lastTapTime > 2000) {
+      setTapCount(1);
+    } else {
+      const newCount = tapCount + 1;
+      setTapCount(newCount);
+      if (newCount >= 5) {
+        setPasswordMode(true);
+        setTapCount(0);
+        Alert.alert('Password mode enabled');
+      }
+    }
+    setLastTapTime(now);
+  };
 
   const showError = (message: string) => {
     setError(message);
@@ -98,6 +121,49 @@ export default function SignInScreen() {
       setPendingVerification(true);
     } catch (err: unknown) {
       console.error('Sign in error:', err);
+      showError(getErrorMessage(err, 'Sign in failed. Please try again.'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePasswordSignIn = async () => {
+    if (!signIn || fetchStatus === 'fetching') {
+      showError('Authentication is loading. Please wait and try again.');
+      return;
+    }
+    if (!email.trim()) {
+      setError('Please enter your email address.');
+      return;
+    }
+    if (!password) {
+      setError('Please enter your password.');
+      return;
+    }
+    setError('');
+    setLoading(true);
+
+    try {
+      const { error: createError } = await signIn.create({
+        identifier: email.trim(),
+        password,
+      });
+
+      if (createError) {
+        showError(getClerkError(createError, 'Invalid email or password. Please try again.'));
+        return;
+      }
+
+      if (signIn.status === 'complete') {
+        const { error: finalizeError } = await signIn.finalize();
+        if (finalizeError) {
+          showError(getClerkError(finalizeError, 'Could not complete sign in. Please try again.'));
+        }
+      } else {
+        showError('Sign in incomplete. Please try again.');
+      }
+    } catch (err: unknown) {
+      console.error('Password sign in error:', err);
       showError(getErrorMessage(err, 'Sign in failed. Please try again.'));
     } finally {
       setLoading(false);
@@ -151,6 +217,25 @@ export default function SignInScreen() {
       showError(getErrorMessage(err, 'Google sign in failed. Please try again.'));
     } finally {
       setGoogleLoading(false);
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    setError('');
+    setAppleLoading(true);
+
+    try {
+      const { createdSessionId, setActive: setActiveSession } =
+        await startAppleAuthenticationFlow();
+
+      if (createdSessionId && setActiveSession) {
+        await setActiveSession({ session: createdSessionId });
+      }
+    } catch (err: unknown) {
+      console.error('Apple sign in error:', err);
+      showError(getErrorMessage(err, 'Apple sign in failed. Please try again.'));
+    } finally {
+      setAppleLoading(false);
     }
   };
 
@@ -215,15 +300,31 @@ export default function SignInScreen() {
         contentContainerStyle={styles.inner}
         keyboardShouldPersistTaps="handled"
       >
-        <Image
-          source={require('@/assets/images/towmycar-driver-blue-logo.png')}
-          style={styles.logo}
-          resizeMode="contain"
-        />
+        <TouchableOpacity onPress={handleLogoTap} activeOpacity={1}>
+          <Image
+            source={require('@/assets/images/towmycar-driver-blue-logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+        </TouchableOpacity>
         <Text style={styles.title}>TowMyCar</Text>
         <Text style={styles.subtitle}>Driver Sign In</Text>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
+
+        {Platform.OS === 'ios' && (
+          <TouchableOpacity
+            style={[styles.appleButton, appleLoading && styles.buttonDisabled]}
+            onPress={handleAppleSignIn}
+            disabled={appleLoading}
+          >
+            {appleLoading ? (
+              <ActivityIndicator color="#000000" />
+            ) : (
+              <Text style={styles.appleButtonText}> Sign in with Apple</Text>
+            )}
+          </TouchableOpacity>
+        )}
 
         <TouchableOpacity
           style={[styles.googleButton, googleLoading && styles.buttonDisabled]}
@@ -254,17 +355,36 @@ export default function SignInScreen() {
           autoCorrect={false}
         />
 
+        {passwordMode && (
+          <TextInput
+            style={styles.input}
+            placeholder="Password"
+            placeholderTextColor={Colors.textMuted}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
+        )}
+
         <TouchableOpacity
           style={[styles.button, loading && styles.buttonDisabled]}
-          onPress={handleEmailSignIn}
+          onPress={passwordMode ? handlePasswordSignIn : handleEmailSignIn}
           disabled={loading}
         >
           {loading ? (
             <ActivityIndicator color={Colors.text} />
           ) : (
-            <Text style={styles.buttonText}>Continue with Email</Text>
+            <Text style={styles.buttonText}>
+              {passwordMode ? 'Sign In with Password' : 'Continue with Email'}
+            </Text>
           )}
         </TouchableOpacity>
+
+        {passwordMode && (
+          <TouchableOpacity onPress={() => { setPasswordMode(false); setPassword(''); }}>
+            <Text style={styles.toggleLink}>Switch to email code</Text>
+          </TouchableOpacity>
+        )}
 
         <TouchableOpacity onPress={() => router.push('/(auth)/sign-up')}>
           <Text style={styles.link}>
@@ -330,6 +450,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
+  appleButton: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  appleButtonText: {
+    color: '#000000',
+    fontSize: 16,
+    fontWeight: '600',
+  },
   buttonDisabled: {
     opacity: 0.6,
   },
@@ -368,6 +500,12 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 1,
     backgroundColor: Colors.border,
+  },
+  toggleLink: {
+    color: Colors.textMuted,
+    textAlign: 'center',
+    fontSize: 13,
+    marginBottom: 8,
   },
   dividerText: {
     color: Colors.textMuted,
