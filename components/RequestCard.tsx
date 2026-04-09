@@ -1,4 +1,5 @@
 import { View, Text, TouchableOpacity, StyleSheet, Linking, Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/colors';
 import { StatusBadge } from './StatusBadge';
 import type { AssignedRequest } from '@/lib/types/api';
@@ -59,12 +60,7 @@ export function RequestCard({ item, onPress }: RequestCardProps) {
         <StatusBadge status={item.driverStatus} />
       </View>
 
-      <TouchableOpacity
-        style={styles.routeRow}
-        onPress={() => openDirections(fromPostcode, toPostcode)}
-        activeOpacity={canOpenDirections ? 0.6 : 1}
-        disabled={!canOpenDirections}
-      >
+      <View style={styles.routeRow}>
         <View style={styles.postcodeBlock}>
           <Text style={styles.postcodeLabel}>FROM</Text>
           <Text style={styles.postcodeValue}>{fromPostcode ?? '—'}</Text>
@@ -81,11 +77,15 @@ export function RequestCard({ item, onPress }: RequestCardProps) {
         </View>
 
         {canOpenDirections && (
-          <View style={styles.mapIcon}>
-            <Text style={styles.mapEmoji}>🗺️</Text>
-          </View>
+          <TouchableOpacity
+            style={styles.mapIcon}
+            onPress={() => openDirections(fromPostcode, toPostcode)}
+            activeOpacity={0.6}
+          >
+            <Ionicons name="map-outline" size={18} color={Colors.textMuted} />
+          </TouchableOpacity>
         )}
-      </TouchableOpacity>
+      </View>
 
       {(make || reg) && (
         <View style={styles.vehicleRow}>
@@ -169,9 +169,7 @@ const styles = StyleSheet.create({
   },
   mapIcon: {
     marginLeft: 8,
-  },
-  mapEmoji: {
-    fontSize: 18,
+    padding: 4,
   },
   vehicleRow: {
     flexDirection: 'row',

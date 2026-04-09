@@ -1,22 +1,58 @@
+import { useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useUser } from '@clerk/expo';
+import { useAuth, useUser } from '@clerk/expo';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AntDesign } from '@expo/vector-icons';
 import { Colors } from '@/constants/colors';
 import { useDriverDashboard } from '@/lib/hooks/use-driver-api';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { ErrorView } from '@/components/ErrorView';
 import { getApiErrorMessage } from '@/lib/api/client';
+import { setPendingAuthError } from '@/lib/auth/pending-error';
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user } = useUser();
+  const { signOut } = useAuth();
   const { data, isLoading, isError, error, refetch, isFetching } = useDriverDashboard();
+
+  useEffect(() => {
+    if (isError) {
+      const status = (error as { response?: { status?: number } })?.response?.status;
+      if (status === 403) {
+        setPendingAuthError(
+          'This app is for registered TowMyCar drivers only. Your account does not have driver access.',
+        );
+        signOut();
+      }
+    }
+  }, [isError, error, signOut]);
 
   if (isLoading) return <LoadingSpinner />;
 
   if (isError) {
+    const status = (error as { response?: { status?: number } })?.response?.status;
+
+    if (status === 403) {
+      return <LoadingSpinner />;
+    }
+
+    if (status === 404) {
+      return (
+        <View style={styles.accessDenied}>
+          <Text style={styles.accessTitle}>Account Not Set Up</Text>
+          <Text style={styles.accessMessage}>
+            {"Your account doesn't have a driver profile yet.\n\nPlease contact TowMyCar support to activate your driver account."}
+          </Text>
+          <TouchableOpacity style={styles.signOutButton} onPress={() => signOut()}>
+            <Text style={styles.signOutText}>Sign Out</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
     return (
       <ErrorView
         message={getApiErrorMessage(error, 'Failed to load dashboard')}
@@ -106,7 +142,10 @@ export default function DashboardScreen() {
                 <Text style={styles.reviewerName}>
                   {review.customer.firstName} {review.customer.lastName}
                 </Text>
-                <Text style={styles.reviewRating}>⭐ {review.rating}</Text>
+                <View style={styles.reviewRatingContainer}>
+                  <AntDesign name="star" size={14} color={Colors.warning} />
+                  <Text style={styles.reviewRating}>{review.rating}</Text>
+                </View>
               </View>
               <Text style={styles.reviewText}>{review.feedback}</Text>
             </View>
@@ -256,9 +295,46 @@ const styles = StyleSheet.create({
     color: Colors.warning,
     fontSize: 14,
   },
+  reviewRatingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
   reviewText: {
     color: Colors.textSecondary,
     fontSize: 13,
     lineHeight: 18,
+  },
+  accessDenied: {
+    flex: 1,
+    backgroundColor: Colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+  },
+  accessTitle: {
+    color: Colors.text,
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  accessMessage: {
+    color: Colors.textSecondary,
+    fontSize: 15,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 32,
+  },
+  signOutButton: {
+    backgroundColor: Colors.primary,
+    borderRadius: 10,
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+  },
+  signOutText: {
+    color: Colors.text,
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

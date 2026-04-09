@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,12 +12,14 @@ import {
   Alert,
   ScrollView,
 } from 'react-native';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { useSignIn } from '@clerk/expo';
 import { useSignInWithGoogle } from '@clerk/expo/google';
 import { useSignInWithApple } from '@clerk/expo/apple';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/colors';
 import { ENV } from '@/env';
+import { consumePendingAuthError } from '@/lib/auth/pending-error';
 
 type ClerkErrorLike = { message?: string; longMessage?: string } | null;
 
@@ -65,6 +67,11 @@ export default function SignInScreen() {
   const [password, setPassword] = useState('');
   const [tapCount, setTapCount] = useState(0);
   const [lastTapTime, setLastTapTime] = useState(0);
+
+  useEffect(() => {
+    const err = consumePendingAuthError();
+    if (err) setError(err);
+  }, []);
 
   const handleLogoTap = () => {
     const now = Date.now();
@@ -313,17 +320,15 @@ export default function SignInScreen() {
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         {Platform.OS === 'ios' && (
-          <TouchableOpacity
-            style={[styles.appleButton, appleLoading && styles.buttonDisabled]}
-            onPress={handleAppleSignIn}
-            disabled={appleLoading}
-          >
-            {appleLoading ? (
-              <ActivityIndicator color="#000000" />
-            ) : (
-              <Text style={styles.appleButtonText}> Sign in with Apple</Text>
-            )}
-          </TouchableOpacity>
+          <View style={appleLoading ? styles.appleButtonDisabled : undefined}>
+            <AppleAuthentication.AppleAuthenticationButton
+              buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+              buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+              cornerRadius={8}
+              style={styles.appleButton}
+              onPress={handleAppleSignIn}
+            />
+          </View>
         )}
 
         <TouchableOpacity
@@ -451,16 +456,13 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   appleButton: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    padding: 16,
-    alignItems: 'center',
+    width: '100%',
+    height: 50,
     marginBottom: 12,
   },
-  appleButtonText: {
-    color: '#000000',
-    fontSize: 16,
-    fontWeight: '600',
+  appleButtonDisabled: {
+    opacity: 0.6,
+    pointerEvents: 'none',
   },
   buttonDisabled: {
     opacity: 0.6,

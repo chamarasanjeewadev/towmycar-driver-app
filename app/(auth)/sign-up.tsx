@@ -12,6 +12,7 @@ import {
   Alert,
   ScrollView,
 } from 'react-native';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { useSignUp } from '@clerk/expo';
 import { useSignInWithGoogle } from '@clerk/expo/google';
 import { useSignInWithApple } from '@clerk/expo/apple';
@@ -244,17 +245,15 @@ export default function SignUpScreen() {
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         {Platform.OS === 'ios' && (
-          <TouchableOpacity
-            style={[styles.appleButton, appleLoading && styles.buttonDisabled]}
-            onPress={handleAppleSignUp}
-            disabled={appleLoading}
-          >
-            {appleLoading ? (
-              <ActivityIndicator color="#000000" />
-            ) : (
-              <Text style={styles.appleButtonText}> Sign in with Apple</Text>
-            )}
-          </TouchableOpacity>
+          <View style={appleLoading ? styles.appleButtonDisabled : undefined}>
+            <AppleAuthentication.AppleAuthenticationButton
+              buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_UP}
+              buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+              cornerRadius={8}
+              style={styles.appleButton}
+              onPress={handleAppleSignUp}
+            />
+          </View>
         )}
 
         <TouchableOpacity
@@ -363,16 +362,13 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   appleButton: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    padding: 16,
-    alignItems: 'center',
+    width: '100%',
+    height: 50,
     marginBottom: 12,
   },
-  appleButtonText: {
-    color: '#000000',
-    fontSize: 16,
-    fontWeight: '600',
+  appleButtonDisabled: {
+    opacity: 0.6,
+    pointerEvents: 'none',
   },
   buttonDisabled: {
     opacity: 0.6,
