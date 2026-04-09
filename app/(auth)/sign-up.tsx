@@ -18,6 +18,7 @@ import { useSignInWithGoogle } from '@clerk/expo/google';
 import { useSignInWithApple } from '@clerk/expo/apple';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/colors';
+import { markNewDriverSignUp } from '@/lib/auth/pending-registration';
 
 type ClerkErrorLike = { message?: string; longMessage?: string } | null;
 
@@ -38,7 +39,7 @@ export default function SignUpScreen() {
   const { signUp, fetchStatus } = useSignUp() as unknown as {
     signUp: {
       status: string;
-      create: (params: { emailAddress: string }) => Promise<{ error: ClerkErrorLike }>;
+      create: (params: { emailAddress: string; unsafeMetadata?: Record<string, unknown> }) => Promise<{ error: ClerkErrorLike }>;
       verifications: {
         sendEmailCode: () => Promise<{ error: ClerkErrorLike }>;
         verifyEmailCode: (params: { code: string }) => Promise<{ error: ClerkErrorLike }>;
@@ -80,6 +81,7 @@ export default function SignUpScreen() {
       // Step 1: Create sign-up with email
       const { error: createError } = await signUp.create({
         emailAddress: email.trim(),
+        unsafeMetadata: { role: 'driver' },
       });
 
       if (createError) {
@@ -120,6 +122,7 @@ export default function SignUpScreen() {
 
       // Step 4: Finalize to create the session
       if (signUp.status === 'complete') {
+        markNewDriverSignUp();
         const { error: finalizeError } = await signUp.finalize();
         if (finalizeError) {
           showError(getClerkError(finalizeError, 'Could not complete sign up. Please try again.'));
@@ -140,10 +143,13 @@ export default function SignUpScreen() {
     setGoogleLoading(true);
 
     try {
-      const { createdSessionId, setActive: setActiveSession } =
-        await startGoogleAuthenticationFlow();
+      const { createdSessionId, setActive: setActiveSession, signUp } =
+        await startGoogleAuthenticationFlow({ unsafeMetadata: { role: 'driver' } });
 
       if (createdSessionId && setActiveSession) {
+        if (signUp?.createdUserId) {
+          markNewDriverSignUp();
+        }
         await setActiveSession({ session: createdSessionId });
       }
     } catch (err: unknown) {
@@ -159,10 +165,13 @@ export default function SignUpScreen() {
     setAppleLoading(true);
 
     try {
-      const { createdSessionId, setActive: setActiveSession } =
-        await startAppleAuthenticationFlow();
+      const { createdSessionId, setActive: setActiveSession, signUp } =
+        await startAppleAuthenticationFlow({ unsafeMetadata: { role: 'driver' } });
 
       if (createdSessionId && setActiveSession) {
+        if (signUp?.createdUserId) {
+          markNewDriverSignUp();
+        }
         await setActiveSession({ session: createdSessionId });
       }
     } catch (err: unknown) {

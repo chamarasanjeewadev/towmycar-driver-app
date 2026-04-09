@@ -7,6 +7,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import * as Updates from 'expo-updates';
 import * as Notifications from 'expo-notifications';
 import { tokenCache } from '@/lib/auth/token-cache';
+import { consumeNewDriverSignUp } from '@/lib/auth/pending-registration';
 import { setAuthTokenGetter } from '@/lib/api/client';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { ToastProvider } from '@/components/Toast';
@@ -45,7 +46,11 @@ function AuthRouter() {
     const inAuthGroup = segments[0] === '(auth)';
 
     if (isSignedIn && inAuthGroup) {
-      router.replace('/(app)/dashboard');
+      if (consumeNewDriverSignUp()) {
+        router.replace('/(app)/pending-registration');
+      } else {
+        router.replace('/(app)/dashboard');
+      }
     } else if (!isSignedIn && !inAuthGroup) {
       router.replace('/(auth)/sign-in');
     }

@@ -182,6 +182,14 @@ export default function AppLayout() {
         name="settings"
         options={{ title: 'Settings' }}
       />
+      <Drawer.Screen
+        name="pending-registration"
+        options={{
+          title: 'Complete Registration',
+          drawerItemStyle: { display: 'none' },
+          swipeEnabled: false,
+        }}
+      />
     </Drawer>
   );
 }
