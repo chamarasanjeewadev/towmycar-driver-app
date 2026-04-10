@@ -26,6 +26,7 @@ import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { ErrorView } from '@/components/ErrorView';
 import { getApiErrorMessage } from '@/lib/api/client';
 import { JobFlowStepper, getJobStep } from '@/components/JobFlowStepper';
+import { QuoteRangeIndicator } from '@/components/QuoteRangeIndicator';
 import { useToast } from '@/components/Toast';
 
 const MAX_QUOTE_ATTEMPTS = 3;
@@ -372,6 +373,12 @@ export default function RequestDetailScreen() {
               onChangeText={setEstimation}
               keyboardType="decimal-pad"
             />
+            <QuoteRangeIndicator
+              distance={jobInfo?.deliveryDistance ?? null}
+              make={jobInfo?.make ?? null}
+              weight={jobInfo?.weight ?? null}
+              currentAmount={estimation}
+            />
 
             <Text style={styles.inputLabel}>Explanation</Text>
             <TextInput
@@ -423,6 +430,12 @@ export default function RequestDetailScreen() {
             <DetailRow
               label="Amount"
               value={request.estimation ? `£${request.estimation}` : '-'}
+            />
+            <QuoteRangeIndicator
+              distance={jobInfo?.deliveryDistance ?? null}
+              make={jobInfo?.make ?? null}
+              weight={jobInfo?.weight ?? null}
+              currentAmount={request.estimation ?? ''}
             />
             <DetailRow label="Explanation" value={request.explanation ?? '-'} />
 

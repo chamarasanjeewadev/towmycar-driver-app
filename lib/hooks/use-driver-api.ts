@@ -10,6 +10,7 @@ import {
   fetchDashboard,
   fetchProfile,
   updateDriverSettings,
+  deleteDriverAccount,
 } from '@/lib/api/driver';
 import type { QuoteSubmission, AssignedRequestDetail } from '@/lib/types/api';
 
@@ -132,5 +133,11 @@ export function useUpdateDriverSettings() {
       queryClient.invalidateQueries({ queryKey: ['driverProfile'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
+  });
+}
+
+export function useDeleteAccount() {
+  return useMutation({
+    mutationFn: () => deleteDriverAccount(),
   });
 }

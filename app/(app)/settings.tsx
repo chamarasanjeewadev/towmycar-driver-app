@@ -7,10 +7,13 @@ import {
   Switch,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/colors';
-import { useDriverProfile, useUpdateDriverSettings } from '@/lib/hooks/use-driver-api';
+import { useAuth } from '@clerk/expo';
+import { useDriverProfile, useUpdateDriverSettings, useDeleteAccount } from '@/lib/hooks/use-driver-api';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { ErrorView } from '@/components/ErrorView';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -22,6 +25,8 @@ function SettingsContent() {
   const insets = useSafeAreaInsets();
   const { data: profile, isLoading, isError, error, refetch } = useDriverProfile();
   const updateSettings = useUpdateDriverSettings();
+  const deleteAccount = useDeleteAccount();
+  const { signOut } = useAuth();
   const { showToast } = useToast();
 
   const driver = profile?.driver;
@@ -81,6 +86,67 @@ function SettingsContent() {
     } catch (err) {
       showToast('error', 'Update Failed', getApiErrorMessage(err, 'Failed to update settings. Please try again.'));
     }
+  };
+
+  const performDeleteAccount = async () => {
+    try {
+      await deleteAccount.mutateAsync();
+      showToast('success', 'Account Deleted');
+      await signOut();
+    } catch (err) {
+      showToast('error', 'Deletion Failed', getApiErrorMessage(err, 'Failed to delete account. Please try again.'));
+    }
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account',
+      'This action cannot be undone. This will permanently delete your driver account and remove all your data from our servers. All your active assignments and profile information will be lost.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Continue',
+          style: 'destructive',
+          onPress: () => {
+            if (Platform.OS === 'ios') {
+              Alert.prompt(
+                'Confirm Deletion',
+                'Type DELETE to confirm account deletion.',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Delete My Account',
+                    style: 'destructive',
+                    onPress: (value?: string) => {
+                      if (value?.trim() !== 'DELETE') {
+                        showToast('error', 'Deletion Cancelled', 'You must type DELETE to confirm.');
+                        return;
+                      }
+                      performDeleteAccount();
+                    },
+                  },
+                ],
+                'plain-text',
+                '',
+              );
+            } else {
+              Alert.alert(
+                'Final Confirmation',
+                'Are you absolutely sure? This will permanently delete your account and all associated data.',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Delete My Account',
+                    style: 'destructive',
+                    onPress: () => performDeleteAccount(),
+                  },
+                ],
+              );
+            }
+          },
+        },
+      ],
+    );
   };
 
   return (
@@ -188,6 +254,26 @@ function SettingsContent() {
       <Text style={styles.infoText}>
         We need your current location to send you jobs based on the service radius and service availability status you set. It can be changed as you move. Turn off Service Availability Status if you do not want any job notifications.
       </Text>
+
+      {/* Danger Zone */}
+      <View style={[styles.section, styles.dangerSection]}>
+        <Text style={styles.dangerTitle}>Danger Zone</Text>
+        <Text style={styles.dangerDescription}>
+          Once you delete your account, there is no going back. All your data, active assignments, and profile information will be permanently removed.
+        </Text>
+        <TouchableOpacity
+          style={[styles.deleteButton, deleteAccount.isPending && styles.deleteButtonDisabled]}
+          onPress={handleDeleteAccount}
+          disabled={deleteAccount.isPending}
+          activeOpacity={0.8}
+        >
+          {deleteAccount.isPending ? (
+            <ActivityIndicator color={Colors.error} />
+          ) : (
+            <Text style={styles.deleteButtonText}>Delete Account</Text>
+          )}
+        </TouchableOpacity>
+      </View>
     </ScrollView>
   );
 }
@@ -313,5 +399,38 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     textAlign: 'center',
     paddingHorizontal: 8,
+  },
+  dangerSection: {
+    marginTop: 24,
+    borderWidth: 1,
+    borderColor: Colors.error + '44',
+  },
+  dangerTitle: {
+    color: Colors.error,
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  dangerDescription: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 16,
+  },
+  deleteButton: {
+    borderRadius: 10,
+    padding: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.error + '55',
+    backgroundColor: Colors.error + '15',
+  },
+  deleteButtonDisabled: {
+    opacity: 0.5,
+  },
+  deleteButtonText: {
+    color: Colors.error,
+    fontSize: 15,
+    fontWeight: '600',
   },
 });

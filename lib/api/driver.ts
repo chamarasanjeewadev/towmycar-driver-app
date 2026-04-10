@@ -90,3 +90,8 @@ export async function updateDriverSettings(settings: {
   const { data } = await apiClient.patch('/driver/profile-settings', settings);
   return data;
 }
+
+export async function deleteDriverAccount() {
+  const { data } = await apiClient.delete('/driver/account');
+  return data;
+}
