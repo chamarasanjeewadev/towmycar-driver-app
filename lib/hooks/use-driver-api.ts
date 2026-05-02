@@ -12,6 +12,7 @@ import {
   updateDriverSettings,
   deleteDriverAccount,
 } from '@/lib/api/driver';
+import { fetchDriverRequestPhotos, fetchDriverCompletionPhotos } from '@/lib/api/photos';
 import type { QuoteSubmission, AssignedRequestDetail } from '@/lib/types/api';
 
 export function useAssignedRequests(page = 1) {
@@ -30,6 +31,26 @@ export function useRequestDetails(requestId: number) {
     queryKey: ['requestDetails', requestId],
     queryFn: () => fetchRequestDetails(requestId),
     enabled: !!isSignedIn && !!requestId,
+    retry: 1,
+  });
+}
+
+export function useDriverRequestPhotos(requestId: number) {
+  const { isSignedIn } = useAuth();
+  return useQuery({
+    queryKey: ['driverRequestPhotos', requestId],
+    queryFn: () => fetchDriverRequestPhotos(requestId),
+    enabled: !!isSignedIn && !!requestId,
+    retry: 1,
+  });
+}
+
+export function useDriverCompletionPhotos(requestId: number, enabled: boolean) {
+  const { isSignedIn } = useAuth();
+  return useQuery({
+    queryKey: ['driverCompletionPhotos', requestId],
+    queryFn: () => fetchDriverCompletionPhotos(requestId),
+    enabled: !!isSignedIn && !!requestId && enabled,
     retry: 1,
   });
 }
@@ -77,11 +98,14 @@ export function useCloseJob() {
       requestId,
       markAsCompleted,
       reason,
+      completionPhotos,
     }: {
       requestId: number;
       markAsCompleted: boolean;
       reason?: string;
-    }) => closeAndRateJob(requestId, markAsCompleted, reason),
+      completionPhotos?: Array<{ photoNumber: number; fileName: string }>;
+    }) =>
+      closeAndRateJob(requestId, markAsCompleted, reason, completionPhotos),
     onSuccess: (_, { requestId }) => {
       queryClient.invalidateQueries({ queryKey: ['assignedRequests'] });
       queryClient.invalidateQueries({ queryKey: ['requestDetails', requestId] });

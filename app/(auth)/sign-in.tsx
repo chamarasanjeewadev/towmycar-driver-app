@@ -385,9 +385,13 @@ export default function SignInScreen() {
           )}
         </TouchableOpacity>
 
-        {passwordMode && (
+        {passwordMode ? (
           <TouchableOpacity onPress={() => { setPasswordMode(false); setPassword(''); }}>
             <Text style={styles.toggleLink}>Switch to email code</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity onPress={() => setPasswordMode(true)}>
+            <Text style={styles.toggleLink}>Sign in with password instead</Text>
           </TouchableOpacity>
         )}
 

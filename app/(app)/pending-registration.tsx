@@ -7,14 +7,12 @@ import {
   Linking,
   Image,
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import { useAuth } from '@clerk/expo';
 import { Colors } from '@/constants/colors';
 
 const WEB_PANEL_URL = 'https://towmycar.uk/driver/sign-in';
 
 export default function PendingRegistrationScreen() {
-  const router = useRouter();
   const { signOut } = useAuth();
 
   const handleOpenWebPanel = () => {
@@ -73,10 +71,6 @@ export default function PendingRegistrationScreen() {
       </TouchableOpacity>
 
       <Text style={styles.urlHint}>towmycar.uk/driver/sign-in</Text>
-
-      <TouchableOpacity style={styles.dashboardButton} onPress={() => router.replace('/(app)/dashboard')}>
-        <Text style={styles.dashboardButtonText}>Go to Dashboard</Text>
-      </TouchableOpacity>
 
       <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
         <Text style={styles.signOutText}>Sign Out</Text>
@@ -190,21 +184,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textMuted,
     marginBottom: 16,
-  },
-  dashboardButton: {
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 10,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    width: '100%',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  dashboardButtonText: {
-    color: Colors.textSecondary,
-    fontSize: 15,
-    fontWeight: '600',
   },
   signOutButton: {
     paddingVertical: 8,

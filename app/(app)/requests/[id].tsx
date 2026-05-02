@@ -11,16 +11,25 @@ import {
   KeyboardAvoidingView,
   Platform,
   Linking,
+  Modal,
+  Image,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
 import { Colors } from '@/constants/colors';
 import {
   useRequestDetails,
   useSubmitQuote,
   useConfirmJob,
   useCloseJob,
+  useDriverRequestPhotos,
+  useDriverCompletionPhotos,
 } from '@/lib/hooks/use-driver-api';
+import {
+  getCompletionPhotoPresignedUrls,
+  uploadFileToS3,
+} from '@/lib/api/photos';
 import { StatusBadge } from '@/components/StatusBadge';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { ErrorView } from '@/components/ErrorView';
@@ -28,6 +37,13 @@ import { getApiErrorMessage } from '@/lib/api/client';
 import { JobFlowStepper, getJobStep } from '@/components/JobFlowStepper';
 import { QuoteRangeIndicator } from '@/components/QuoteRangeIndicator';
 import { useToast } from '@/components/Toast';
+
+const MAX_COMPLETION_PHOTOS = 3;
+
+type PickedCompletionPhoto = {
+  uri: string;
+  fileName: string;
+};
 
 const MAX_QUOTE_ATTEMPTS = 3;
 
@@ -50,6 +66,20 @@ export default function RequestDetailScreen() {
   const [explanation, setExplanation] = useState('');
   const [isEditingQuote, setIsEditingQuote] = useState(false);
   const [quoteCount, setQuoteCount] = useState(0);
+
+  // Customer photos (if any) — visible after the driver has any assignment.
+  const { data: customerPhotos } = useDriverRequestPhotos(requestId);
+
+  // Completion photos — only fetched once the job is closed.
+  const { data: completionPhotos } = useDriverCompletionPhotos(
+    requestId,
+    !!request && request.driverStatus === 'CLOSED',
+  );
+
+  // Completion photo upload state
+  const [completeSheetOpen, setCompleteSheetOpen] = useState(false);
+  const [pickedPhotos, setPickedPhotos] = useState<PickedCompletionPhoto[]>([]);
+  const [isCompleting, setIsCompleting] = useState(false);
 
   useEffect(() => {
     if (!request) return;
@@ -171,26 +201,85 @@ export default function RequestDetailScreen() {
   };
 
   const handleCompleteJob = () => {
-    Alert.alert(
-      'Complete Job',
-      'Are you sure you want to mark this job as completed?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Complete',
-          style: 'default',
-          onPress: async () => {
-            try {
-              await closeJob.mutateAsync({ requestId, markAsCompleted: true });
-              showToast('success', 'Job Completed', 'Great work!');
-              router.replace('/(app)/requests');
-            } catch (err) {
-              showToast('error', 'Complete Failed', getApiErrorMessage(err, 'Failed to complete job. Please try again.'));
-            }
-          },
-        },
-      ],
-    );
+    setPickedPhotos([]);
+    setCompleteSheetOpen(true);
+  };
+
+  const handleAddCompletionPhoto = async () => {
+    if (pickedPhotos.length >= MAX_COMPLETION_PHOTOS) return;
+
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      showToast('error', 'Permission needed', 'Allow photo access to attach completion photos.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.85,
+      allowsMultipleSelection: false,
+    });
+
+    if (result.canceled) return;
+    const asset = result.assets?.[0];
+    if (!asset) return;
+
+    const fileName =
+      asset.fileName ?? `completion-${Date.now()}.${(asset.uri.split('.').pop() || 'jpg').toLowerCase()}`;
+    setPickedPhotos((prev) => [...prev, { uri: asset.uri, fileName }]);
+  };
+
+  const handleRemoveCompletionPhoto = (idx: number) => {
+    setPickedPhotos((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleConfirmComplete = async () => {
+    const assignmentId = request.id;
+    setIsCompleting(true);
+    try {
+      let completionPhotos: Array<{ photoNumber: number; fileName: string }> | undefined;
+
+      if (pickedPhotos.length > 0 && assignmentId) {
+        // Use the extension of the first picked photo for the presign request.
+        const ext = `.${(pickedPhotos[0].fileName.split('.').pop() || 'jpg').toLowerCase()}`;
+        const { presignedUrls } = await getCompletionPhotoPresignedUrls(
+          assignmentId,
+          ext,
+        );
+
+        // Upload each picked photo to its slot.
+        await Promise.all(
+          pickedPhotos.map((photo, idx) => {
+            const slot = presignedUrls[idx];
+            if (!slot) return Promise.resolve();
+            const ct = `image/${(photo.fileName.split('.').pop() || 'jpeg').toLowerCase()}`;
+            return uploadFileToS3(slot.presignedUrl, photo.uri, ct);
+          }),
+        );
+
+        completionPhotos = pickedPhotos.map((photo, idx) => ({
+          photoNumber: presignedUrls[idx]?.photoNumber ?? idx + 1,
+          fileName: photo.fileName,
+        }));
+      }
+
+      await closeJob.mutateAsync({
+        requestId,
+        markAsCompleted: true,
+        completionPhotos,
+      });
+      setCompleteSheetOpen(false);
+      showToast('success', 'Job Completed', 'Great work!');
+      router.replace('/(app)/requests');
+    } catch (err) {
+      showToast(
+        'error',
+        'Complete Failed',
+        getApiErrorMessage(err, 'Failed to complete job. Please try again.'),
+      );
+    } finally {
+      setIsCompleting(false);
+    }
   };
 
   const handleCloseJob = () => {
@@ -260,6 +349,52 @@ export default function RequestDetailScreen() {
               <Text style={styles.bannerTitle}>Job Completed</Text>
               <Text style={styles.bannerSubtitle}>Great work! This job has been completed.</Text>
             </View>
+          </View>
+        )}
+
+        {/* Customer photos (if uploaded) */}
+        {customerPhotos && customerPhotos.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Customer Photos</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.photoStrip}
+            >
+              {customerPhotos.map((p) => (
+                <Image
+                  key={`${p.s3Path}-${p.photoNumber}`}
+                  source={{ uri: p.signedUrl }}
+                  style={styles.photoStripItem}
+                  resizeMode="cover"
+                />
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Completion photos (uploaded by driver when marking job complete) */}
+        {isCompleted && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Completion Photos</Text>
+            {completionPhotos && completionPhotos.length > 0 ? (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.photoStrip}
+              >
+                {completionPhotos.map((p) => (
+                  <Image
+                    key={`${p.s3Path}-${p.photoNumber}`}
+                    source={{ uri: p.signedUrl }}
+                    style={styles.photoStripItem}
+                    resizeMode="cover"
+                  />
+                ))}
+              </ScrollView>
+            ) : (
+              <Text style={styles.noPhotosText}>No completion photos uploaded.</Text>
+            )}
           </View>
         )}
 
@@ -520,6 +655,70 @@ export default function RequestDetailScreen() {
         )}
 
       </ScrollView>
+
+      {/* Complete-job bottom sheet with optional photos */}
+      <Modal
+        visible={completeSheetOpen}
+        animationType="slide"
+        transparent
+        onRequestClose={() => !isCompleting && setCompleteSheetOpen(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.modalSheet, { paddingBottom: 16 + insets.bottom }]}>
+            <Text style={styles.modalTitle}>Complete Job</Text>
+            <Text style={styles.modalSubtitle}>
+              Add up to {MAX_COMPLETION_PHOTOS} photos of the completed job (optional). Customers see these to build trust.
+            </Text>
+
+            <View style={styles.pickedPhotosRow}>
+              {pickedPhotos.map((p, idx) => (
+                <View key={`${p.uri}-${idx}`} style={styles.pickedPhotoBox}>
+                  <Image source={{ uri: p.uri }} style={styles.pickedPhotoImg} />
+                  <TouchableOpacity
+                    style={styles.pickedPhotoRemove}
+                    onPress={() => handleRemoveCompletionPhoto(idx)}
+                  >
+                    <Text style={styles.pickedPhotoRemoveText}>×</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+              {pickedPhotos.length < MAX_COMPLETION_PHOTOS && (
+                <TouchableOpacity
+                  style={styles.addPhotoBox}
+                  onPress={handleAddCompletionPhoto}
+                  disabled={isCompleting}
+                >
+                  <Text style={styles.addPhotoPlus}>+</Text>
+                  <Text style={styles.addPhotoLabel}>Add photo</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.cancelButton, isCompleting && styles.buttonDisabled]}
+                onPress={() => setCompleteSheetOpen(false)}
+                disabled={isCompleting}
+              >
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.submitButton, styles.submitButtonFlex, isCompleting && styles.buttonDisabled]}
+                onPress={handleConfirmComplete}
+                disabled={isCompleting}
+              >
+                {isCompleting ? (
+                  <ActivityIndicator color={Colors.text} />
+                ) : (
+                  <Text style={styles.submitText}>
+                    {pickedPhotos.length > 0 ? 'Upload & Complete' : 'Complete Job'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -833,5 +1032,105 @@ const styles = StyleSheet.create({
     color: Colors.error,
     fontSize: 15,
     fontWeight: '600',
+  },
+
+  noPhotosText: {
+    color: Colors.textMuted,
+    fontSize: 13,
+    marginTop: 4,
+  },
+  // Customer photo strip
+  photoStrip: {
+    gap: 8,
+    paddingVertical: 4,
+  },
+  photoStripItem: {
+    width: 110,
+    height: 110,
+    borderRadius: 8,
+    backgroundColor: Colors.surfaceLight,
+  },
+
+  // Complete-job modal
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+  },
+  modalTitle: {
+    color: Colors.text,
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  modalSubtitle: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    marginBottom: 16,
+  },
+  pickedPhotosRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 20,
+  },
+  pickedPhotoBox: {
+    width: 90,
+    height: 90,
+    borderRadius: 8,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  pickedPhotoImg: {
+    width: '100%',
+    height: '100%',
+  },
+  pickedPhotoRemove: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: Colors.error,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pickedPhotoRemoveText: {
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 16,
+  },
+  addPhotoBox: {
+    width: 90,
+    height: 90,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.surfaceLight,
+  },
+  addPhotoPlus: {
+    color: Colors.primary,
+    fontSize: 28,
+    fontWeight: '700',
+    lineHeight: 32,
+  },
+  addPhotoLabel: {
+    color: Colors.textMuted,
+    fontSize: 11,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 10,
   },
 });

@@ -2,7 +2,7 @@
   "expo": {
     "name": "TowMyCar Driver",
     "slug": "towmycar-driver",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -20,7 +20,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.towmycar.driverapp",
-      "buildNumber": "20",
+      "buildNumber": "21",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,

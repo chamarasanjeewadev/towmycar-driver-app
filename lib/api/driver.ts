@@ -61,10 +61,17 @@ export async function closeAndRateJob(
   requestId: number,
   markAsCompleted: boolean,
   reason?: string,
+  completionPhotos?: Array<{ photoNumber: number; fileName: string }>,
 ) {
   const { data } = await apiClient.post(
     `/driver/close-and-rate/${requestId}`,
-    { markAsCompleted, ...(reason ? { reason } : {}) },
+    {
+      markAsCompleted,
+      ...(reason ? { reason } : {}),
+      ...(completionPhotos && completionPhotos.length > 0
+        ? { completionPhotos }
+        : {}),
+    },
   );
   return data;
 }
